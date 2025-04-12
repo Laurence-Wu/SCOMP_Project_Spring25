@@ -1,0 +1,28 @@
+ORG 0
+
+LOAD Pulsing
+JUMPHERE:
+OUT LEDs
+JUMP JUMPHERE
+
+; Commands
+; Animation
+Blinking: DW &HD400
+Pulsing: DW &HD800
+Ripple:  DW &HDC00
+; Command Template
+TogOneTemp: DW &HC400
+TogMulTemp: DW &HC000
+BriOneTemp: DW &HC800
+BriMulTemp: DW &H1800
+PosOneTemp: DW &HCC00
+PosMulTemp: DW &H4800
+NegOneTemp: DW &HD000
+NegMulTemp: DW &H8800
+
+
+Switches: EQU 000
+LEDs:    EQU &H20
+Timer:   EQU 002
+HEX0:    EQU 003
+HEX1:    EQU 004
