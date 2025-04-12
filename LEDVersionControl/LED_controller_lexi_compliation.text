@@ -1,0 +1,502 @@
+ORG 0
+
+; Reset all values
+Reset:
+ CALL CleanRound
+ LOADI 0   ; Initialize reset value
+    STORE Score  ; Reset score
+    OUT  Hex1  ; Reset round
+    OUT  Hex0  ; Reset display
+    OUT  Timer  ; Reset timer
+    LOADI 3
+    STORE Count
+    
+; Wait for all switches to be down
+SetCheck:
+    IN  Switches ; Load in switch value
+    JZERO Animation ; Checks if all switches are down
+ JUMP SetCheck ; Jump back if not all switches are down
+
+; LED Effect
+; Blinking effect for 3s
+Animation:
+ OUT     Timer  
+WaitingLoopB:
+ CALL IncRandom ; Increment random value
+    LOAD Blinking ; Load in blinking command
+    OUT  LEDs
+ IN      Timer
+ ADDI    -30
+ JNEG    WaitingLoopB
+    LOADI 0   ; Reset LEDs
+    OUT  LEDs
+; Pulsing effect for 3s
+ OUT     Timer  
+WaitingLoopP:
+ CALL IncRandom ; Increment random value
+    LOAD Pulsing  ; Load in pulsing command
+    OUT  LEDs
+    IN      Timer
+ ADDI    -30
+ JNEG    WaitingLoopP
+    LOADI 0   ; Reset LEDs
+    OUT  LEDs
+    CALL Delay3
+    
+; 1st round of the game
+; One mole pops out at a time. No intermediate brightness change
+
+ ;Set round number
+    LOADI 1
+    OUT  HEX1
+R1st:
+ IN  Switches
+    STORE PrevSwitch
+  ;Keep track of count
+ LOAD Count  
+    ADDI -1
+    STORE Count
+    JNEG EndR1st
+ ;One mole only
+    CALL Calculation10 ; Get the mod random number
+    CALL ConvertSwitch
+    LOAD ModValue
+ ADD  TogOneTemp
+    OUT  LEDs
+    OUT  Timer
+WaitingLoopR1Tog:
+ CALL IncRandom
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR1Tog
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR1Tog   ; If not correct, go back to waiting
+    CALL AddScore
+    ; Clear LED corresponding to the correct switch
+    JUMP EarlyExitR1
+UpdateTimerR1Tog:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR1Tog
+    LOAD ModValue
+    ADD  BriOneTemp
+    OUT  LEDs
+    OUT  Timer
+WaitingLoopR1Bri:
+ CALL IncRandom
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR1Bri
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR1Bri   ; If not correct, go back to waiting
+    CALL AddScore
+    ; Clear LED corresponding to the correct switch
+    JUMP EarlyExitR1
+UpdateTimerR1Bri:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR1Bri
+EarlyExitR1:
+ CALL CleanRound
+    JUMP R1st
+EndR1st:
+ CALL CleanRound
+    CALL Delay3
+    
+    
+    
+ ;Set round number
+    LOADI 2
+    OUT  HEX1 
+; Second round
+; Set multiple moles
+R2nd:
+ ; Store current switch value
+ IN  Switches
+    STORE PrevSwitch
+ ;A pattern of all mole
+    CALL Calculation1024 ; Get the mod random number
+    LOAD ModValue
+    STORE CorrectSwitch
+    ADD  TogMulTemp
+    OUT  LEDs
+    OUT  Timer
+WaitingLoopR2Tog:
+ CALL IncRandom
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR2Tog
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR2Tog   ; If not correct, go back to waiting
+    ; Clear LED corresponding to the correct switch
+    CALL FlipBits
+    OUT     LEDs
+    ; Remove that bit from CorrectSwitch to prevent repeat scoring
+    LOAD    CorrectSwitch
+    SUB     ToggleValue
+    STORE   CorrectSwitch
+    CALL AddScore
+    LOAD CorrectSwitch
+    JZERO EarlyExitR2
+UpdateTimerR2Tog:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR2Tog
+    LOAD ModValue
+    ADD  BriMulTemp
+    OUT  LEDs
+    OUT  Timer
+WaitingLoopR2Bri:
+ CALL IncRandom
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR2Bri
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR2Bri   ; If not correct, go back to waiting
+    ; Clear LED corresponding to the correct switch
+    CALL FlipBits
+    OUT     LEDs
+    ; Remove that bit from CorrectSwitch to prevent repeat scoring
+    LOAD    CorrectSwitch
+    SUB     ToggleValue
+    STORE   CorrectSwitch
+    CALL AddScore
+    LOAD CorrectSwitch
+    JZERO EarlyExitR2
+UpdateTimerR2Bri:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR2Bri
+EarlyExitR2:
+ CALL CleanRound
+    CALL Delay3
+    
+    
+    
+    LOADI 3
+    STORE Count
+; 3rd Round
+ ;Set round number
+    LOADI 3
+    OUT  HEX1
+R3rd:
+ IN  Switches
+    STORE PrevSwitch
+ LOAD Count  ; Keep track of count
+    ADDI -1
+    STORE Count
+    JNEG EndR3rd
+ ;First mole
+    CALL Calculation10 ; Get the mod random number
+    CALL ConvertSwitch
+ OUT     Timer  
+WaitingLoopR3Pos:
+ CALL IncRandom ; Increment random value
+    LOAD ModValue
+ ADD  PosOneTemp
+    OUT  LEDs
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR3Pos
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR3Pos   ; If not correct, go back to waiting
+    CALL AddScore
+    ; Clear LED corresponding to the correct switch
+    JUMP EarlyExitR3
+UpdateTimerR3Pos:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR3Pos
+    OUT  Timer
+WaitingLoopR3Neg:
+ CALL IncRandom ; Increment random value
+    LOAD ModValue
+ ADD  NegOneTemp
+    OUT  LEDs
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR3Neg
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR3Neg   ; If not correct, go back to waiting
+    CALL AddScore
+    ; Clear LED corresponding to the correct switch
+    JUMP EarlyExitR3
+UpdateTimerR3Neg:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR3Neg
+EarlyExitR3:
+ CALL CleanRound
+    JUMP R3rd
+EndR3rd:
+ CALL CleanRound
+    CALL Delay3
+    
+    
+; Round 4
+ ;Set round number
+    LOADI 4
+    OUT  HEX1
+R4th:
+ ; Store current switch value
+ IN  Switches
+    STORE PrevSwitch
+ ;A pattern of all mole
+    CALL Calculation1024 ; Get the mod random number
+    LOAD ModValue
+    STORE CorrectSwitch
+WaitingLoopR4Pos:
+    LOAD ModValue
+    ADD  PosMulTemp
+    OUT  LEDs
+ CALL IncRandom
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR4Pos
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR4Pos   ; If not correct, go back to waiting
+    ; Clear LED corresponding to the correct switch
+    CALL FlipBits
+    OUT     LEDs
+    ; Remove that bit from CorrectSwitch to prevent repeat scoring
+    LOAD    CorrectSwitch
+    SUB     ToggleValue
+    STORE   CorrectSwitch
+    CALL AddScore
+    LOAD CorrectSwitch
+    JZERO EarlyExitR4
+UpdateTimerR4Pos:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR4Pos
+    OUT  Timer
+WaitingLoopR4Neg:
+    LOAD ModValue
+    ADD  NegMulTemp
+    OUT  LEDs
+ CALL IncRandom
+ IN  Switches
+    STORE CurrSwitch
+    SUB  PrevSwitch
+    JZERO UpdateTimerR4Neg
+    LOAD PrevSwitch
+    XOR     CurrSwitch      ; XOR to isolate the toggled bit
+    STORE   ToggleValue     ; Store toggled bit
+    LOAD CurrSwitch
+    STORE PrevSwitch
+    ; Check if toggled bit is part of CorrectSwitch
+    LOAD    CorrectSwitch
+    AND     ToggleValue
+    JZERO   UpdateTimerR4Neg   ; If not correct, go back to waiting
+    ; Clear LED corresponding to the correct switch
+    CALL FlipBits
+    OUT     LEDs
+    ; Remove that bit from CorrectSwitch to prevent repeat scoring
+    LOAD    CorrectSwitch
+    SUB     ToggleValue
+    STORE   CorrectSwitch
+    CALL AddScore
+    LOAD CorrectSwitch
+    JZERO EarlyExitR4
+UpdateTimerR4Neg:
+ IN      Timer
+ ADDI    -10
+ JNEG    WaitingLoopR4Neg
+EarlyExitR4:
+ CALL CleanRound
+    CALL Delay3
+    
+RippleAnimation:
+ OUT     Timer  
+WaitingLoopR:
+ CALL IncRandom ; Increment random value
+    LOAD Ripple  ; Load in ripple command
+    OUT  LEDs
+ IN      Timer
+ ADDI    -30
+ JNEG    WaitingLoopR
+    LOADI 0   ; Reset LEDs
+    OUT  LEDs
+    
+; Restart the game if all switches are down
+Restart:
+    IN  Switches ; Load in switch value
+    JZERO Reset  ; Checks if all switches are down
+    JUMP Restart  ; Restart game
+
+Inf:
+ JUMP Inf
+
+
+
+
+; Subroutines
+; Reset variables after a small/big round
+CleanRound:
+    LOADI 0   
+    OUT  LEDs
+    STORE ModValue
+    STORE Value
+    STORE CurrSwitch
+    STORE PrevSwitch
+    STORE ToggleValue
+    LOADI 1
+    STORE CorrectSwitch
+    RETURN
+
+; Increment random
+IncRandom:
+ LOAD Value  ; Load the random value
+    ADDI 1   ; Add 1 to the random value
+    STORE Value  ; Store it back to memory
+    RETURN
+
+; Mod the random value and store the mod in both Value and ModValue
+Calculation10:
+    LOAD Value  ; Load the random value
+    AND  Mod10  ; Get value % 10
+    STORE Value  ; Store back the random value
+    STORE ModValue ; Store the value at ModValue
+ RETURN
+    
+; Mod the random value and store the mod in both Value and ModValue
+Calculation1024:
+    LOAD Value  ; Load the random value
+    AND  Mod1024  ; Get value % 1024
+    STORE Value  ; Store back the random value
+    JPOS Go   ; Exit early if not 0
+    LOAD 1023  ; Mod 1024 is 0 so set value to 1023
+    STORE Value  ; Store the value
+    STORE ModValue ; Store the value at ModValue
+Go:
+ RETURN
+    
+; Convert the index value input to the correct switch answer
+; Reset value to 0
+ConvertSwitch:
+ LOAD Value
+    JZERO EarlyExitC
+    LOAD CorrectSwitch
+    SHIFT 1
+    STORE CorrectSwitch
+    LOAD Value
+    ADDI -1
+    STORE Value
+ JUMP ConvertSwitch
+EarlyExitC:
+    RETURN
+
+; Delay for 3 seconds
+Delay3:
+ OUT     Timer
+WaitingLoop3:
+ IN      Timer
+ ADDI    -30
+ JNEG    WaitingLoop3
+ RETURN
+
+; Add score and update bool
+AddScore:
+ LOAD Score
+    ADDI 5
+    STORE Score
+    OUT  HEX0
+ RETURN
+    
+; Flip every bit of ToggleValue and store it back
+FlipBits:
+    LOAD    ToggleValue     ; Load the original value
+    XOR     AllOnes         ; XOR with all 1s to flip bits
+    RETURN
+    
+
+; Commands
+; Animation
+Blinking: DW &HD400
+Pulsing: DW &HD800
+Ripple:  DW &HDC00
+; Command Template
+TogOneTemp: DW &HC400
+TogMulTemp: DW &HC000
+BriOneTemp: DW &HC800
+BriMulTemp: DW &H1800
+PosOneTemp: DW &HCC00
+PosMulTemp: DW &H4800
+NegOneTemp: DW &HD000
+NegMulTemp: DW &H8800
+
+; Varaibles
+CorrectSwitch: DW 1
+Score:   DW 0
+Value:   DW  0
+ModValue:  DW  0
+Mod10:   DW &H000A
+Mod1024:  DW  1024
+Count:   DW 3
+CurrSwitch:  DW 0
+PrevSwitch:  DW 0
+ToggleValue: DW 0
+AllOnes:     DW  &HFFFF 
+
+; Peripheral IO Addresses
+Switches:  EQU 000
+LEDs:     EQU &H20
+Timer:    EQU 002
+HEX0:     EQU 004
+HEX1:     EQU 005
