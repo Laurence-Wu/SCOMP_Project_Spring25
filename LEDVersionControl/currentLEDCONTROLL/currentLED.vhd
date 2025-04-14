@@ -459,7 +459,7 @@ BEGIN
             -- Blinking Effect Processing
             ----------------------------------------------------------------------------
             IF blink_mode = '1' THEN
-                IF blink_counter < 74999 THEN
+                IF blink_counter < 12000000 THEN
                     blink_counter <= blink_counter + 1;
                 ELSE
                     blink_counter <= 0;
@@ -475,11 +475,11 @@ BEGIN
                         IF led_blink_enabled(i) = '1' THEN
                             -- Toggle LED state and preserve other effects
                             IF (blink_time MOD 2) = 0 THEN
-                                led_state(i) <= '1';  -- Turn on for even counts
-                            ELSE
-                                led_state(i) <= '0';  -- Turn off for odd counts
+                                led_brightness(i) <= "0000"; 
+                                 -- Turn on for even counts
+                            ELSE -- Turn off for odd counts
                                 -- Reset brightness to default when turning back on
-                                led_brightness(i) <= "1111";
+                                led_brightness(i) <= "1000";
                             END IF;
                         END IF;
                     END LOOP;
