@@ -147,6 +147,7 @@ BEGIN
             k                 <= 0;
             neg_pulse_mode    <= '0';
             neg_pulse_brightness <= "1111";
+            led_pulse_flag    <= (OTHERS => '0');
             neg_k             <= 0;
             led_pulse_enabled <= (OTHERS => '0');
             led_pulse_target  <= (OTHERS => "0000");
@@ -154,14 +155,16 @@ BEGIN
             led_neg_enabled   <= (OTHERS => '0');
             led_neg_target    <= (OTHERS => "0000");
             led_neg_counter   <= (OTHERS => 0);
+            -- ripple function
             ripple_mode       <= '0';
             ripple_index      <= 0;
             ripple_counter    <= 0;
+            -- blinking function
             blink_mode        <= '0';
             blink_counter     <= 0;
             blink_time        <= 0;
             led_blink_enabled <= (OTHERS => '0');
-            led_pulse_flag    <= (OTHERS => '0');
+            
             
         ELSIF rising_edge(CS) THEN
             IF WRITE_EN = '1' THEN
@@ -455,36 +458,34 @@ BEGIN
 					 END IF;
 				END LOOP;
 				
+
             ----------------------------------------------------------------------------
             -- Blinking Effect Processing
             ----------------------------------------------------------------------------
-            IF blink_mode = '1' THEN
-                IF blink_counter < 12000000 THEN
-                    blink_counter <= blink_counter + 1;
-                ELSE
-                    blink_counter <= 0;
-                    -- Prevent overflow by resetting when reaching max value
-                    IF blink_time = 99 THEN
-                        blink_time <= 0;
-                    ELSE
-                        blink_time <= blink_time + 1;
-                    END IF;
-                    
-                    -- Determine LED state based on even/odd blink_time
-                    FOR i IN 0 TO 9 LOOP
-                        IF led_blink_enabled(i) = '1' THEN
-                            -- Toggle LED state and preserve other effects
-                            IF (blink_time MOD 2) = 0 THEN
-                                led_brightness(i) <= "0000"; 
-                                 -- Turn on for even counts
-                            ELSE -- Turn off for odd counts
-                                -- Reset brightness to default when turning back on
-                                led_brightness(i) <= "1000";
-                            END IF;
-                        END IF;
-                    END LOOP;
-                END IF;
-            END IF;
+				 IF blink_mode = '1' THEN
+					  IF blink_counter < 74999 THEN
+							blink_counter <= blink_counter + 1;
+					  ELSE
+							blink_counter <= 0;
+							IF blink_time < 50000 THEN
+								 blink_time <= blink_time + 1;
+								 -- Determine LED state based on even/odd blink_time
+									FOR i IN 0 TO 9 LOOP
+										 IF led_blink_enabled(i) = '1' THEN
+											  IF (blink_time MOD 2) = 0 THEN
+													led_state(i) <= '1';  -- Turn on for even counts
+													led_brightness(i) <= "1111";
+											  ELSE
+													led_state(i) <= '0';  -- Turn off for odd counts
+													led_brightness(i) <= "0000";
+											  END IF;
+										 END IF;
+									END LOOP;
+							ELSE
+								 blink_time <= 0;
+							END IF;
+					  END IF;
+				 END IF;
 
         END IF;
     END PROCESS;
