@@ -84,8 +84,8 @@ ARCHITECTURE Behavioral OF LEDController IS
     SIGNAL led_neg_enabled   : pulse_array       := (OTHERS => '0');
     SIGNAL led_neg_target    : pulse_val_array   := (OTHERS => "0000");
     SIGNAL led_neg_counter   : pulse_count_array := (OTHERS => 0);
-      
-    -- global puslsing
+      
+       -- global puslsing
     SIGNAL led_pulse_flag    : pulse_array := (OTHERS => '0');
 
     ----------------------------------------------------------------------------
@@ -199,7 +199,7 @@ BEGIN
                     ----------------------------------------------------------------------------
                     WHEN "10" =>
                         led_index_array := IO_DATA(9 DOWNTO 0);
-                        neg_pulse_mode <= '1';
+                                                neg_pulse_mode <= '1';
                         FOR i IN 0 TO 9 LOOP
                             IF led_index_array(i) = '1' THEN
                                 led_neg_enabled(i) <= '1';
@@ -255,7 +255,7 @@ BEGIN
                         ELSIF IO_DATA(13 DOWNTO 10) = "0011" THEN  -- F6: Set Positive Pulse for Single LED
                             led_index := to_integer(unsigned(IO_DATA(3 DOWNTO 0)));
                             IF led_index <= 9 THEN
-                                pulse_mode <= '1';
+                                                                  pulse_mode <= '1';
                                 led_pulse_enabled(led_index) <= '1';
                                 led_pulse_target(led_index)  <= IO_DATA(7 DOWNTO 4);
                                 led_pulse_counter(led_index) <= 0;
@@ -263,7 +263,7 @@ BEGIN
                         ELSIF IO_DATA(13 DOWNTO 10) = "0100" THEN  -- F7: Set Negative Pulse for Single LED
                             led_index := to_integer(unsigned(IO_DATA(3 DOWNTO 0)));
                             IF led_index <= 9 THEN
-                                neg_pulse_mode <= '1';
+                                                                  neg_pulse_mode <= '1';
                                 led_neg_enabled(led_index) <= '1';
                                 led_neg_target(led_index)  <= IO_DATA(7 DOWNTO 4);
                                 led_neg_counter(led_index) <= 0;
@@ -281,14 +281,17 @@ BEGIN
                                     led_state(i) <= '1';
                                     led_gamma(i) <= '1';
                                 END IF;
-                            END LOOP;                    
+                            END LOOP;
+                                                      
                         ELSIF IO_DATA(13 DOWNTO 10) = "0110" THEN  -- F9: Global Positive Pulsing Effect
                             pulse_mode <= '1';  
-                            FOR i IN 0 TO 9 LOOP
-                                led_pulse_enabled(i) <= '1';
-                                led_pulse_target(i) <= IO_DATA(3 DOWNTO 0);
-                                led_pulse_counter(i) <= 0;
-                            END LOOP;                      
+                                                      FOR i IN 0 TO 9 LOOP
+                                                            led_pulse_enabled(i) <= '1';
+                                                            led_pulse_target(i) <= IO_DATA(3 DOWNTO 0);
+                                                            led_pulse_counter(i) <= 0;
+                                                      END LOOP;
+
+                                                      
                         ELSIF IO_DATA(13 DOWNTO 10) = "0111" THEN  -- F10: Ripple Effect
                             ripple_mode  <= '1';
                             ripple_index <= 0;  -- Use specified index as starting point
@@ -366,79 +369,82 @@ BEGIN
             ----------------------------------------------------------------------------
             -- Global neg && positive pulsing effect
             ----------------------------------------------------------------------------
-            IF pulse_mode = '1' AND IO_DATA(13 DOWNTO 10) = "0110" THEN
-                FOR i IN 0 TO 9 LOOP
-                    IF led_pulse_enabled(i) = '1' THEN
-                        IF led_pulse_counter(i) < (37500 * (to_integer(unsigned(led_pulse_target(i))) + 1)) THEN
-                            led_pulse_counter(i) <= led_pulse_counter(i) + 1;
-                        ELSE
-                            led_pulse_counter(i) <= 0;
-                            IF led_pulse_flag(i) = '0' THEN
-                                -- We're in the increasing phase
-                                IF led_brightness(i) = "1111" THEN
-                                    led_pulse_flag(i) <= '1';
-                                    led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
-                                ELSE
-                                    led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
-                                END IF;
-                            ELSE
-                                -- We're in the decreasing phase
-                                IF led_brightness(i) = "0000" THEN
-                                    led_pulse_flag(i) <= '0';
-                                    led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
-                                ELSE
-                                    led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
-                                END IF;
-                            END IF;
-                            led_gamma(i) <= '1';
-                            led_state(i) <= '1';
-                        END IF;
-                    END IF;
-                END LOOP;
-            END IF;
+                        IF pulse_mode = '1' AND IO_DATA(13 DOWNTO 10) = "0110" THEN
+                              FOR i IN 0 TO 9 LOOP
+                                    IF led_pulse_enabled(i) = '1' THEN
+                                                IF led_pulse_counter(i) < (37500 * (to_integer(unsigned(led_pulse_target(i))) + 1)) THEN
+                                                      led_pulse_counter(i) <= led_pulse_counter(i) + 1;
+                                                ELSE
+                                                      led_pulse_counter(i) <= 0;
+                                                      IF led_pulse_flag(i) = '0' THEN
+                                                      -- We're in the increasing phase
+                                                            IF led_brightness(i) = "1111" THEN
+                                                                  led_pulse_flag(i) <= '1';
+                                                                  led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
+                                                            ELSE
+                                                                  led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
+                                                            END IF;                 
+                                                      ELSE
+                                                            -- We're in the decreasing phase
+                                                            IF led_brightness(i) = "0000" THEN
+                                                                  led_pulse_flag(i) <= '0';
+                                                                  led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
+                                                            ELSE
+                                                                  led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
+                                                            END IF;
+                                                      END IF;
+                                                      led_gamma(i) <= '1';
+                                                      led_state(i) <= '1';
+                                                END IF;
+                                    END IF;
+                        END LOOP;
+                  END IF;
             ----------------------------------------------------------------------------
             -- Individual Positive Pulsing Processing for LEDs
             ----------------------------------------------------------------------------
             IF pulse_mode = '1' AND IO_DATA(13 DOWNTO 10) = "0011" THEN
-                FOR i IN 0 TO 9 LOOP
-                    IF led_pulse_enabled(i) = '1' THEN
-                        IF led_pulse_counter(i) < (37500 * (to_integer(unsigned(led_pulse_target(i))) + 1)) THEN
-                            led_pulse_counter(i) <= led_pulse_counter(i) + 1;
-                        ELSE
-                            led_pulse_counter(i) <= 0;
-                            IF led_brightness(i) < "1111" THEN
-                                led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
-                            ELSE
-                                led_brightness(i) <= "0000";
-                            END IF;
-                            led_gamma(i) <= '1';
-                            led_state(i) <= '1';
-                        END IF;
-                    END IF;
-                END LOOP;
-            END IF;
+                              FOR i IN 0 TO 9 LOOP
+                                     IF led_pulse_enabled(i) = '1' THEN
+                                            IF led_pulse_counter(i) < (37500 * (to_integer(unsigned(led_pulse_target(i))) + 1)) THEN
+                                                      led_pulse_counter(i) <= led_pulse_counter(i) + 1;
+                                            ELSE
+                                                      led_pulse_counter(i) <= 0;
+                                                      IF led_brightness(i) < "1111" THEN
+                                                             led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
+                                                      ELSE
+                                                             led_brightness(i) <= "0000";
+                                                      END IF;
+                                                      led_gamma(i) <= '1';
+                                                      led_state(i) <= '1';
+                                            END IF;
+                                     END IF;
+                              END LOOP;
+                        END IF;
 
             ----------------------------------------------------------------------------
             -- Negative Pulsing Processing
             ----------------------------------------------------------------------------
             IF (neg_pulse_mode = '1' AND IO_DATA(13 DOWNTO 10) = "0100") OR (neg_pulse_mode = '1' AND IO_DATA(15 DOWNTO 14) = "10") THEN
-                FOR i IN 0 TO 9 LOOP
-                    IF led_neg_enabled(i) = '1' THEN
-                        IF led_neg_counter(i) < (37500 * (to_integer(unsigned(led_neg_target(i))) + 1)) THEN
-                            led_neg_counter(i) <= led_neg_counter(i) + 1;
-                        ELSE
-                            led_neg_counter(i) <= 0;
-                            IF led_brightness(i) > "0000" THEN
-                                led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
-                            ELSE
-                                led_brightness(i) <= "1111";
-                            END IF;
-                            led_gamma(i) <= '1';
-                            led_state(i) <= '1';
-                        END IF;
-                    END IF;
-                END LOOP;
-            END IF;
+                                          FOR i IN 0 TO 9 LOOP
+                                                 IF led_neg_enabled(i) = '1' THEN
+                                                        IF led_neg_counter(i) < (37500 * (to_integer(unsigned(led_neg_target(i))) + 1)) THEN
+                                                                  led_neg_counter(i) <= led_neg_counter(i) + 1;
+                                                        ELSE
+                                                                  led_neg_counter(i) <= 0;
+                                                                  IF led_brightness(i) > "0000" THEN
+                                                                         led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
+                                                                  ELSE
+                                                                         led_brightness(i) <= "1111";
+                                                                  END IF;
+                                                                  led_gamma(i) <= '1';
+                                                                  led_state(i) <= '1';
+                                                        END IF;
+                                                 END IF;
+                                          END LOOP;
+                END IF;
+                        
+                  
+
             ----------------------------------------------------------------------------
             -- Blinking Effect Processing
             ----------------------------------------------------------------------------

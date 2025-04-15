@@ -75,7 +75,7 @@ ARCHITECTURE Behavioral OF LEDController IS
     ----------------------------------------------------------------------------
     TYPE pulse_array       IS ARRAY(0 TO 9) OF STD_LOGIC;
     TYPE pulse_val_array   IS ARRAY(0 TO 9) OF STD_LOGIC_VECTOR(3 DOWNTO 0);
-    TYPE pulse_count_array IS ARRAY(0 TO 9) OF INTEGER RANGE 0 TO 600000;
+    TYPE pulse_count_array IS ARRAY(0 TO 9) OF INTEGER RANGE 0 TO 10000000;
 
     SIGNAL led_pulse_enabled : pulse_array       := (OTHERS => '0');
     SIGNAL led_pulse_target  : pulse_val_array   := (OTHERS => "0000");
@@ -170,7 +170,7 @@ BEGIN
             IF WRITE_EN = '1' THEN
                 command := IO_DATA(15 DOWNTO 14);
                 CASE command IS
-                    ----------------------------------------------------------------------------
+                    ------------------------------------------------------------------------------
                     -- Command "00": Set Brightness for Multiple LEDs
                     ----------------------------------------------------------------------------
                     WHEN "00" =>
@@ -199,6 +199,7 @@ BEGIN
                     ----------------------------------------------------------------------------
                     WHEN "10" =>
                         led_index_array := IO_DATA(9 DOWNTO 0);
+								neg_pulse_mode <= '1';
                         FOR i IN 0 TO 9 LOOP
                             IF led_index_array(i) = '1' THEN
                                 led_neg_enabled(i) <= '1';
@@ -254,6 +255,7 @@ BEGIN
                         ELSIF IO_DATA(13 DOWNTO 10) = "0011" THEN  -- F6: Set Positive Pulse for Single LED
                             led_index := to_integer(unsigned(IO_DATA(3 DOWNTO 0)));
                             IF led_index <= 9 THEN
+											pulse_mode <= '1';
                                 led_pulse_enabled(led_index) <= '1';
                                 led_pulse_target(led_index)  <= IO_DATA(7 DOWNTO 4);
                                 led_pulse_counter(led_index) <= 0;
@@ -261,6 +263,7 @@ BEGIN
                         ELSIF IO_DATA(13 DOWNTO 10) = "0100" THEN  -- F7: Set Negative Pulse for Single LED
                             led_index := to_integer(unsigned(IO_DATA(3 DOWNTO 0)));
                             IF led_index <= 9 THEN
+											neg_pulse_mode <= '1';
                                 led_neg_enabled(led_index) <= '1';
                                 led_neg_target(led_index)  <= IO_DATA(7 DOWNTO 4);
                                 led_neg_counter(led_index) <= 0;
@@ -330,7 +333,7 @@ BEGIN
             ----------------------------------------------------------------------------
             -- Ripple Mode Processing
             ----------------------------------------------------------------------------
-            IF ripple_mode = '1' THEN
+            IF ripple_mode = '1' AND IO_DATA(13 DOWNTO 10) = "0111" THEN
             -- start from the position 0, it starts to light up
             -- trigger light up according to the led_state
             -- update the led_state for a clock
@@ -355,7 +358,6 @@ BEGIN
                             IF led_brightness(i) < "1111" THEN
                                 led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) + 1);
                             ELSE
-                                led_state(i) <= '0';  -- when it lights up just disable it
                                 led_brightness(i) <= "0000";
                             END IF;
                         END IF;
@@ -419,73 +421,59 @@ BEGIN
 				END IF;
 
             ----------------------------------------------------------------------------
-            -- Global Negative Pulsing Processing
+            -- Negative Pulsing Processing
             ----------------------------------------------------------------------------
-            IF neg_pulse_mode = '1' THEN
-                IF neg_k < 74999 THEN
-                    neg_k <= neg_k + 1;
-                ELSE
-                    neg_k <= 0;
-                    IF neg_pulse_brightness > "0000" THEN
-                        neg_pulse_brightness <= std_logic_vector(unsigned(neg_pulse_brightness) - 1);
-                    ELSE
-                        neg_pulse_brightness <= "1111";
-                    END IF;
-                    FOR i IN 0 TO 9 LOOP
-                        led_brightness(i) <= neg_pulse_brightness;
-                        led_gamma(i)      <= '1';
-                        led_state(i)      <= '1';
-                    END LOOP;
+            IF (neg_pulse_mode = '1' AND IO_DATA(13 DOWNTO 10) = "0100") OR (neg_pulse_mode = '1' AND IO_DATA(15 DOWNTO 14) = "10") THEN
+							FOR i IN 0 TO 9 LOOP
+								 IF led_neg_enabled(i) = '1' THEN
+									  IF led_neg_counter(i) < (37500 * (to_integer(unsigned(led_neg_target(i))) + 1)) THEN
+											led_neg_counter(i) <= led_neg_counter(i) + 1;
+									  ELSE
+											led_neg_counter(i) <= 0;
+											IF led_brightness(i) > "0000" THEN
+												 led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
+											ELSE
+												 led_brightness(i) <= "1111";
+											END IF;
+											led_gamma(i) <= '1';
+											led_state(i) <= '1';
+									  END IF;
+								 END IF;
+							END LOOP;
                 END IF;
-            END IF;
-
-            ----------------------------------------------------------------------------
-            -- Negative Pulsing Processing tools
-            ----------------------------------------------------------------------------
-				FOR i IN 0 TO 9 LOOP
-					 IF led_neg_enabled(i) = '1' THEN
-						  IF led_neg_counter(i) < (37500 * (to_integer(unsigned(led_neg_target(i))) + 1)) THEN
-								led_neg_counter(i) <= led_neg_counter(i) + 1;
-						  ELSE
-								led_neg_counter(i) <= 0;
-								IF led_brightness(i) > "0000" THEN
-									 led_brightness(i) <= std_logic_vector(unsigned(led_brightness(i)) - 1);
-								ELSE
-									 led_brightness(i) <= "1111";
-								END IF;
-								led_gamma(i) <= '1';
-						  END IF;
-					 END IF;
-				END LOOP;
 				
+			
 
             ----------------------------------------------------------------------------
             -- Blinking Effect Processing
             ----------------------------------------------------------------------------
-				 IF blink_mode = '1' THEN
-					  IF blink_counter < 74999 THEN
-							blink_counter <= blink_counter + 1;
-					  ELSE
-							blink_counter <= 0;
-							IF blink_time < 50000 THEN
-								 blink_time <= blink_time + 1;
-								 -- Determine LED state based on even/odd blink_time
-									FOR i IN 0 TO 9 LOOP
-										 IF led_blink_enabled(i) = '1' THEN
-											  IF (blink_time MOD 2) = 0 THEN
-													led_state(i) <= '1';  -- Turn on for even counts
-													led_brightness(i) <= "1111";
-											  ELSE
-													led_state(i) <= '0';  -- Turn off for odd counts
-													led_brightness(i) <= "0000";
-											  END IF;
-										 END IF;
-									END LOOP;
-							ELSE
-								 blink_time <= 0;
-							END IF;
-					  END IF;
-				 END IF;
+            IF blink_mode = '1'  AND IO_DATA(13 DOWNTO 10) = "0101" THEN
+                IF blink_counter < 12000000000 THEN
+                    blink_counter <= blink_counter + 1;
+                ELSE
+                    blink_counter <= 0;
+                    -- Prevent overflow by resetting when reaching max value
+                    IF blink_time = 99 THEN
+                        blink_time <= 0;
+                    ELSE
+                        blink_time <= blink_time + 1;
+                    END IF;
+                    -- Determine LED state based on even/odd blink_time
+                    FOR i IN 0 TO 9 LOOP
+                        IF led_blink_enabled(i) = '1' THEN
+                            -- Toggle LED state and preserve other effects
+                            IF (blink_time MOD 2) = 0 THEN
+                                led_state(i) <= '1';  -- Turn on for even counts
+                                led_brightness(i) <= "1000";
+                            ELSE
+                                led_state(i) <= '0';  -- Turn off for odd counts
+                                -- Reset brightness to default when turning back on
+                                led_brightness(i) <= "0000";
+                            END IF;
+                        END IF;
+                    END LOOP;
+                END IF;
+            END IF;
 
         END IF;
     END PROCESS;
